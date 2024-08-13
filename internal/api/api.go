@@ -74,7 +74,7 @@ func NewHandler(q *pgstore.Queries) http.Handler {
 	return a
 }
 
-type Messsage struct {
+type Message struct {
 	Kind   string `json:"kind"`
 	Value  any    `json:"value"`
 	RoomID string `json:"-"`
