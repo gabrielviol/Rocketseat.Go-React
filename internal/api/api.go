@@ -288,7 +288,6 @@ func (h apiHandler) handleGetRoomMessages(w http.ResponseWriter, r *http.Request
 }
 
 func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request) {
-	// Extrair o ID da sala e o ID da mensagem dos parâmetros da URL
 	rawRoomID := chi.URLParam(r, "room_id")
 
 	roomID, err := uuid.Parse(rawRoomID)
@@ -297,7 +296,6 @@ func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Consultar a mensagem da sala no banco de dados
 	message, err := h.q.GetMessage(r.Context(), roomID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -309,10 +307,8 @@ func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Definir o cabeçalho da resposta como JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	// Converter a mensagem para JSON
 	data, err := json.Marshal(message)
 	if err != nil {
 		slog.Error("failed to marshal message", "error", err)
@@ -320,7 +316,6 @@ func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Enviar a resposta JSON ao cliente
 	_, err = w.Write(data)
 	if err != nil {
 		slog.Error("failed to write response", "error", err)
@@ -328,6 +323,40 @@ func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (h apiHandler) handleReactToMessage(w http.ResponseWriter, r *http.Request)         {}
+func (h apiHandler) handleReactToMessage(w http.ResponseWriter, r *http.Request) {
+	rawRoomID := chi.URLParam(r, "room_id")
+
+	roomID, err := uuid.Parse(rawRoomID)
+	if err != nil {
+		http.Error(w, "invalid room id", http.StatusBadRequest)
+		return
+	}
+	type requestBody struct {
+		Reaction string `json:"reaction"`
+	}
+
+	var body requestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	reactionCount, err := h.q.ReactToMessage(r.Context(), roomID)
+	if err != nil {
+		slog.Error("failed to react to message", "error", err)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		ReactionCount int64 `json:"reaction_count"`
+	}{
+		ReactionCount: reactionCount,
+	}
+
+	data, _ := json.Marshal(response)
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(data)
+}
 func (h apiHandler) handleRemoveReactFromMessage(w http.ResponseWriter, r *http.Request) {}
 func (h apiHandler) handleMarkMessageAsAnswered(w http.ResponseWriter, r *http.Request)  {}
