@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 
 import amaLogo from '../assets/ama-logo.svg'
-// import { createRoom } from '../http/create-room'
+import { createRoom } from '../http/create-room'
 
 export function CreateRoom() {
   const navigate = useNavigate()
@@ -16,9 +16,9 @@ export function CreateRoom() {
     }
 
     try {
-      // const { roomId } = await createRoom({ theme })
+      const { roomId } = await createRoom({ theme })
 
-      // navigate(`/room/${roomId}`)
+      navigate(`/room/${roomId}`)
     } catch {
       toast.error('Falha ao criar sala!')
     }
@@ -34,7 +34,7 @@ export function CreateRoom() {
         </p>
 
         <form 
-         //  action={handleCreateRoom}
+          action={handleCreateRoom}
           className="flex items-center gap-2 bg-zinc-900 p-2 rounded-xl border border-zinc-800 ring-orange-400 ring-offset-2 ring-offset-zinc-950 focus-within:ring-1"
         >
           <input 
