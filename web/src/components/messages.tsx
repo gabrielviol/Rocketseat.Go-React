@@ -13,7 +13,7 @@ export function Messages() {
 
   const { data } = useSuspenseQuery({
     queryKey: ['messages', roomId],
-    queryFn: () => getRoomMessages({ roomId }),
+    queryFn: async () => await getRoomMessages({ roomId }),
   })
 
   useMessagesWebSockets({ roomId })
