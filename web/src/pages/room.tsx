@@ -3,9 +3,9 @@ import { Share2 } from "lucide-react"
 import { toast } from "sonner"
 
 import amaLogo from '../assets/ama-logo.svg'
-// import { Messages } from "../components/messages"
+import { Messages } from "../components/messages"
 import { Suspense } from "react"
-// import { CreateMessageForm } from "../components/create-message-form"
+import { CreateMessageForm } from "../components/create-message-form"
 
 export function Room() {
   const { roomId } = useParams()
@@ -43,10 +43,10 @@ export function Room() {
 
       <div className="h-px w-full bg-zinc-900" />
 
-      {/* <CreateMessageForm /> */}
+      <CreateMessageForm />
 
       <Suspense fallback={<p>Carregando...</p>}>
-        {/* <Messages /> */}
+        <Messages />
       </Suspense>
     </div>
   )

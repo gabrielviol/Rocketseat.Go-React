@@ -8,11 +8,10 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/go-react-server/internal/store/pgstore"
-
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-react-server/internal/store/pgstore"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5"
@@ -31,12 +30,13 @@ func (h apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewHandler(q *pgstore.Queries) http.Handler {
-	a := &apiHandler{
+	a := apiHandler{
 		q:           q,
 		upgrader:    websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
 		subscribers: make(map[string]map[*websocket.Conn]context.CancelFunc),
 		mu:          &sync.Mutex{},
 	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.Recoverer, middleware.Logger)
 
@@ -46,7 +46,7 @@ func NewHandler(q *pgstore.Queries) http.Handler {
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: false,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
+		MaxAge:           300,
 	}))
 
 	r.Get("/subscribe/{room_id}", a.handleSubscribe)
@@ -110,7 +110,7 @@ type Message struct {
 	RoomID string `json:"-"`
 }
 
-func (h apiHandler) notifyClient(msg Message) {
+func (h apiHandler) notifyClients(msg Message) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -118,6 +118,7 @@ func (h apiHandler) notifyClient(msg Message) {
 	if !ok || len(subscribers) == 0 {
 		return
 	}
+
 	for conn, cancel := range subscribers {
 		if err := conn.WriteJSON(msg); err != nil {
 			slog.Error("failed to send message to client", "error", err)
@@ -224,7 +225,7 @@ func (h apiHandler) handleCreateRoomMessage(w http.ResponseWriter, r *http.Reque
 	messageID, err := h.q.InsertMessage(r.Context(), pgstore.InsertMessageParams{RoomID: roomID, Message: body.Message})
 	if err != nil {
 		slog.Error("failed to insert message", "error", err)
-		http.Error(w, "somenthing went wrong", http.StatusInternalServerError)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -232,11 +233,9 @@ func (h apiHandler) handleCreateRoomMessage(w http.ResponseWriter, r *http.Reque
 		ID string `json:"id"`
 	}
 
-	data, _ := json.Marshal(response{ID: messageID.String()})
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(data)
+	sendJSON(w, response{ID: messageID.String()})
 
-	go h.notifyClient(Message{
+	go h.notifyClients(Message{
 		Kind:   MessageKindMessageCreated,
 		RoomID: rawRoomID,
 		Value: MessageMessageCreated{
@@ -320,7 +319,7 @@ func (h apiHandler) handleReactToMessage(w http.ResponseWriter, r *http.Request)
 
 	sendJSON(w, response{Count: count})
 
-	go h.notifyClient(Message{
+	go h.notifyClients(Message{
 		Kind:   MessageKindMessageRactionIncreased,
 		RoomID: rawRoomID,
 		Value: MessageMessageReactionIncreased{
@@ -356,7 +355,7 @@ func (h apiHandler) handleRemoveReactFromMessage(w http.ResponseWriter, r *http.
 
 	sendJSON(w, response{Count: count})
 
-	go h.notifyClient(Message{
+	go h.notifyClients(Message{
 		Kind:   MessageKindMessageRactionDecreased,
 		RoomID: rawRoomID,
 		Value: MessageMessageReactionDecreased{
@@ -388,7 +387,7 @@ func (h apiHandler) handleMarkMessageAsAnswered(w http.ResponseWriter, r *http.R
 
 	w.WriteHeader(http.StatusOK)
 
-	go h.notifyClient(Message{
+	go h.notifyClients(Message{
 		Kind:   MessageKindMessageAnswered,
 		RoomID: rawRoomID,
 		Value: MessageMessageAnswered{
